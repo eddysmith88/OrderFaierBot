@@ -1,0 +1,98 @@
+@router.callback_query(lambda query: query.data == 'comment')
+async def comment_step(call: CallbackQuery, state: FSMContext, bot: Bot):
+    choice = call.data
+    await state.set_state(Form.add_comment)
+    await call.message.answer('Напишіть ваш коментар')
+
+
+@router.callback_query(lambda query: query.data == 'finish')
+async def comment_empty(call: CallbackQuery, state: FSMContext, bot: Bot):
+    await state.update_data(add_comment="")
+    await finish_empty(call, state, bot)
+
+
+@router.message(Form.add_comment)
+async def comment_form(message: Message, state: FSMContext, bot: Bot):
+    await state.update_data(add_comment=message.text)  # Оновити дані стану, якщо не було введено користувачем коментар
+    await finish(message, state, bot)
+
+
+@router.message(Form.finish_state)
+async def finish(message: Message, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    await state.clear()
+    await message.answer('Ваше замовлення прийнято')
+    # phone = data.get('phone_number')
+    order = data.get('order')
+    count = int(data.get('count'))
+    add_comment = data.get('add_comment')
+    await message.answer(f'Вітаю ви замовили {order}')
+
+    user_id = message.from_user.id
+
+    # Пошук користувача за user_id в базі даних
+    client_base = session.query(ClientBase).filter_by(user_id=user_id).first()
+
+    # Отримання даних користувача
+    if client_base:
+        phone = client_base.phone
+        user_id = client_base.user_id
+    else:
+        phone = "Дані користувача не знайдені"
+        user_id = "Не вдалося знайти user_id"
+
+    lunch_order = session.query(Count).first()
+    if lunch_order:
+        if order == 'lunch':
+            lunch_order.lunch -= count
+        elif order == 'soup':
+            lunch_order.soup -= count
+        session.commit()
+    await bot.send_message("@eddysmith_test", f'Користувач   {message.from_user.full_name}\n'
+                                                      f'Замовив:   {order}\n\nТелефон:   {phone}\n\n'
+                                                      f'ID - {user_id}\n\n'
+                                                      f'Залишилось  обідів  {lunch_order.lunch}\n\n'
+                                                      f'Залишилось супів {lunch_order.soup}\n\n'
+                                                      f'Додатковий коментар: \n\n'
+                                                      f'{add_comment} ')
+    await info(message)
+
+
+
+async def finish_empty(call: CallbackQuery, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    await state.clear()
+    await call.message.answer('Ваше замовлення прийнято')
+    order = data.get('order')
+    count = int(data.get('count'))
+    add_comment = data.get('add_comment')
+    await call.message.answer(f'Вітаю ви замовили {order}')
+
+    user_id = call.from_user.id  # Отримуємо ID користувача з CallbackQuery
+
+    # Пошук користувача за user_id в базі даних
+    client_base = session.query(ClientBase).filter_by(user_id=user_id).first()
+
+    # Отримання даних користувача
+    if client_base:
+        phone = client_base.phone
+        user_id = client_base.user_id
+    else:
+        phone = "Дані користувача не знайдені"
+        user_id = "Не вдалося знайти user_id"
+
+    lunch_order = session.query(Count).first()
+    if lunch_order:
+        if order == 'lunch':
+            lunch_order.lunch -= count
+        elif order == 'soup':
+            lunch_order.soup -= count
+        session.commit()
+    await bot.send_message("@eddysmith_test", f'Користувач   {call.from_user.full_name}\n'
+                                               f'Замовив:   {order}\n\nТелефон:   {phone}\n\n'
+                                               f'ID - {user_id}\n\n'
+                                               f'Залишилось  обідів  {lunch_order.lunch}\n\n'
+                                               f'Залишилось супів {lunch_order.soup}\n\n'
+                                               f'Додатковий коментар: \n\n'
+                                               f'{add_comment} ')
+    await info(call.message)
