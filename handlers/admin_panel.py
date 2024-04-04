@@ -1,9 +1,8 @@
-from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
-from aiogram import Router, F, Bot
+from aiogram import Router, Bot
 from filters.is_admin import IsAdmin
-from keyboards.inline import inline_admin
+from keyboards.inline import inline_admin, channel_button
 from utils.states import Form
 from aiogram.fsm.context import FSMContext
 from utils.data_base import Count
@@ -19,13 +18,28 @@ session = Session()
 
 @router.message(Command('admin'), IsAdmin(887934499))
 async def admin_start(message: Message):
+    """
+    Функція, що оборобляє команду /admin і розпочинає дію з панеллю адміністратора
+    :param message: Об'єкт, що представляє повідомлення від користувача.
+    :return: None
+    """
     await message.answer(f'Вітаю!\nЦе панель адміністратора\nОбери дію\n\n🔽🔽🔽🔽🔽', reply_markup=inline_admin)
+    # count_data = Count(lunch=100, soup=50, price_lunch=10, price_soup=5)
+    # session.add(count_data)
+    # session.commit()
 
 
 @router.callback_query(lambda query: query.data in ['add_lunch', 'remove_lunch', 'reset_lunch', 'add_soup',
-                                                    'remove_soup', 'reset_soup', 'show_lunch', 'show_soup'],
+                                                    'remove_soup', 'reset_soup', 'show_lunch', 'show_soup',
+                                                    'price_lunch', 'price_soup'],
                        IsAdmin(887934499))
-async def admin_choose(call: CallbackQuery, state: FSMContext):
+async def admin_choose(call: CallbackQuery, state: FSMContext) -> None:
+    """
+    Функція, що обробляє callback-запити адміністратора та вибір доступних опцій
+    :param call: Об'єкт, що представляє callback-запит від користувача
+    :param state: Об'єкт для збереження стану конкретного користувача
+    :return:
+    """
     choice = call.data
     if choice == 'add_lunch':
         await call.message.answer(f'Скільки додати обідів?\n🥗🍝🥧🍔🍕\n🔽🔽🔽🔽🔽')
@@ -63,6 +77,85 @@ async def admin_choose(call: CallbackQuery, state: FSMContext):
         current_count_soup = session.query(Count).first().soup
         await call.message.answer(f'Кількість супів\n🍲🍲🍲 {current_count_soup}')
         await admin_start(call.message)
+    elif choice == 'price_lunch':
+        await call.message.answer(f'Ціна на обід\n🍲🍲🍲\n🔽🔽🔽🔽🔽')
+        await state.set_state(Form.price_lunch)
+    elif choice == 'price_soup':
+        await call.message.answer(f'Ціна на обід\n🍲🍲🍲\n🔽🔽🔽🔽🔽')
+        await state.set_state(Form.price_soup)
+
+
+@router.message(Form.price_lunch)
+async def price_lunch(message: Message, state: FSMContext):
+    """
+    Функція, що зберігає стан price_lunch. Встановлює нове значення ціни
+    :param message: Об'єкт, що представляє повідомлення від користувача
+    :param state: Об'єкт для збереження стану конкретного користувача
+    :return: None
+    """
+    if not message.text.isdigit():
+        await message.answer('Тільки цифри')
+        return
+    current_price = session.query(Count).first().price_lunch
+    new_price = current_price * 0 + int(message.text)
+
+    session.query(Count).update({"price_lunch": new_price})
+    session.commit()
+
+    await state.update_data(price_lunch=new_price)
+    await message.answer(f'Ціна обіду оновлена: {new_price}\n🥗🍝🥧🍔🍕')
+    await admin_start(message)
+
+
+@router.message(Form.price_soup)
+async def price_lunch(message: Message, state: FSMContext) -> None:
+    """
+    Функція, що зберігає стан price_soup. Встановлює нове значення ціни
+    :param message: Об'єкт, що представляє повідомлення від користувача
+    :param state: Об'єкт для збереження стану конкретного користувача
+    :return: None
+    """
+    if not message.text.isdigit():
+        await message.answer('Тільки цифри')
+        return
+    current_price = session.query(Count).first().price_soup
+    new_price = current_price * 0 + int(message.text)
+
+    session.query(Count).update({"price_soup": new_price})
+    session.commit()
+
+    await state.update_data(price_soup=new_price)
+    await message.answer(f'Ціна обіду оновлена: {new_price}\n🥗🍝🥧🍔🍕')
+    await admin_start(message)
+
+
+@router.callback_query(lambda query: query.data == 'today', IsAdmin(887934499))
+async def today_callback(call: CallbackQuery, state: FSMContext):
+    """
+    Функція, що обробляє callback-запит з панелі адміністратора
+    :param call: Об'єкт, що представляє повідомлення від користувача
+    :param state: Об'єкт для збереження стану конкретного користувача
+    :return: None
+    """
+    await call.message.answer(f'Пиши що на обід ')
+    await state.set_state(Form.menu_text)
+
+
+@router.message(Form.menu_text)
+async def menu(message: Message, state: FSMContext, bot: Bot):
+    """
+    Функція приймає текст від адміністратора, і відправляє на канал
+    :param message: Об'єкт, що представляє повідомлення від користувача
+    :param state:
+    :param bot:
+    :return:
+    """
+    price_lunch = session.query(Count).first().price_lunch
+    price_soup = session.query(Count).first().price_soup
+    menu_text = message.text
+    channel_id = -1001859713921
+    await bot.send_message(channel_id, f'Сьогодні в меню \n\n{menu_text}\n\n Ціна: {price_lunch} грн',
+                           reply_markup=channel_button)
 
 
 @router.message(Form.lunch_remove)
@@ -70,12 +163,9 @@ async def lunch_remove(message: Message):
     if not message.text.isdigit():
         await message.answer('Тільки цифри')
         return
-    # Отримати поточне значення count з бази даних
     current_count = session.query(Count).first().lunch
-
     new_count = current_count - int(message.text)
 
-    # Оновити значення count в базі даних
     session.query(Count).update({"lunch": new_count})
     session.commit()
 
@@ -88,13 +178,9 @@ async def lunch_count(message: Message, state: FSMContext):
     if not message.text.isdigit():
         await message.answer('Тільки цифри')
         return
-    # Отримати поточне значення count з бази даних
     current_count = session.query(Count).first().lunch
-
-    # Змінити на нове значення а не додавання #TODO new count
     new_count = current_count + int(message.text)
 
-    # Оновити значення count в базі даних
     session.query(Count).update({"lunch": new_count})
     session.commit()
 
@@ -108,12 +194,9 @@ async def lunch_remove(message: Message, state: FSMContext):
     if not message.text.isdigit():
         await message.answer('Тільки цифри')
         return
-    # Отримати поточне значення soup з бази даних
     current_count_soup = session.query(Count).first().soup
-
     new_count_soup = current_count_soup - int(message.text)
 
-    # Оновити значення soup в базі даних
     session.query(Count).update({"soup": new_count_soup})
     session.commit()
 
@@ -126,13 +209,10 @@ async def lunch_count(message: Message, state: FSMContext):
     if not message.text.isdigit():
         await message.answer('Тільки цифри')
         return
-    # Отримати поточне значення soup з бази даних
-    current_count_soup = session.query(Count).first().soup
 
-    # Змінити на нове значення а не додавання
+    current_count_soup = session.query(Count).first().soup
     new_count_soup = current_count_soup + int(message.text)
 
-    # Оновити значення soup в базі даних
     session.query(Count).update({"soup": new_count_soup})
     session.commit()
 

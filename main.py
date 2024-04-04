@@ -1,11 +1,12 @@
 import asyncio
 from aiogram import Bot, Dispatcher
 
-from handlers import bot_messages, base_main, from_admin, admin_panel
+from handlers import bot_messages, base_main, admin_panel
+from config_reader import config
 
 
 async def main():
-    bot = Bot('6497402892:AAFCF0IGPevTp0mqIewRNilGMXXr0UW-XZA')
+    bot = Bot(config.bot_token.get_secret_value())
     dp = Dispatcher()
 
     dp.include_routers(base_main.router, admin_panel.router, bot_messages.router)
@@ -15,4 +16,7 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print('Exit')
