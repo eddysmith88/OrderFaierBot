@@ -2,11 +2,11 @@ import asyncio
 from aiogram import Bot, Dispatcher
 
 from handlers import bot_messages, base_main, admin_panel
-from config_reader import config
+import config
 
 
 async def main():
-    bot = Bot(config.bot_token.get_secret_value())
+    bot = Bot(config.TOKEN)
     dp = Dispatcher()
 
     dp.include_routers(base_main.router, admin_panel.router, bot_messages.router)

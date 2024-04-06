@@ -16,7 +16,7 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 
-@router.message(Command('admin'), IsAdmin(887934499))
+@router.message(Command('admin'), IsAdmin([887934499, 6706858065]))
 async def admin_start(message: Message):
     """
     Функція, що оборобляє команду /admin і розпочинає дію з панеллю адміністратора
@@ -32,7 +32,7 @@ async def admin_start(message: Message):
 @router.callback_query(lambda query: query.data in ['add_lunch', 'remove_lunch', 'reset_lunch', 'add_soup',
                                                     'remove_soup', 'reset_soup', 'show_lunch', 'show_soup',
                                                     'price_lunch', 'price_soup'],
-                       IsAdmin(887934499))
+                       IsAdmin([887934499, 6706858065]))
 async def admin_choose(call: CallbackQuery, state: FSMContext) -> None:
     """
     Функція, що обробляє callback-запити адміністратора та вибір доступних опцій
@@ -129,7 +129,7 @@ async def price_lunch(message: Message, state: FSMContext) -> None:
     await admin_start(message)
 
 
-@router.callback_query(lambda query: query.data == 'today', IsAdmin(887934499))
+@router.callback_query(lambda query: query.data == 'today', IsAdmin([887934499, 6706858065]))
 async def today_callback(call: CallbackQuery, state: FSMContext):
     """
     Функція, що обробляє callback-запит з панелі адміністратора
@@ -137,7 +137,7 @@ async def today_callback(call: CallbackQuery, state: FSMContext):
     :param state: Об'єкт для збереження стану конкретного користувача
     :return: None
     """
-    await call.message.answer(f'Пиши що на обід ')
+    await call.message.answer(f'Що сьогодні на обід \n⬇️⬇️⬇️')
     await state.set_state(Form.menu_text)
 
 
@@ -154,7 +154,8 @@ async def menu(message: Message, state: FSMContext, bot: Bot):
     price_soup = session.query(Count).first().price_soup
     menu_text = message.text
     channel_id = -1001859713921
-    await bot.send_message(channel_id, f'Сьогодні в меню \n\n{menu_text}\n\n Ціна: {price_lunch} грн',
+    channel_id_work = -1002048034204
+    await bot.send_message(channel_id_work, f'Сьогодні в меню \n\n{menu_text}\n\n Ціна: {price_lunch} грн',
                            reply_markup=channel_button)
 
 

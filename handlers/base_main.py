@@ -30,7 +30,7 @@ async def start(message: Message, state: FSMContext):
 
     await message.answer(f"Тут ви можете зробити замовлення\n"
                          f"просто слідуйте інструкціям", reply_markup=inline_keyboard)
-    if message.from_user.id == 887934499:
+    if message.from_user.id in [887934499, 6706858065]:
         await message.answer(f'Адмін панель', reply_markup=start_admin)
 
 
